@@ -1,16 +1,15 @@
 Metadata-Version: 2.4
 Name: ark-market-data-mcp
-Version: 0.1.0
+Version: 0.1.1
 Summary: MCP server for streaming market data via WebSocket
-Author-email: arkhamides <your-email@example.com>
+Author-email: arkhamides <joearchondis@gmail.com>
 License: MIT
-Project-URL: Homepage, https://github.com/arkhamides/ark-market-data-mcp
-Project-URL: Repository, https://github.com/arkhamides/ark-market-data-mcp
-Project-URL: Documentation, https://github.com/arkhamides/ark-market-data-mcp#readme
+Project-URL: Homepage, https://github.com/arkhamides/mcp-market-data
+Project-URL: Repository, https://github.com/arkhamides/mcp-market-data
+Project-URL: Documentation, https://github.com/arkhamides/mcp-market-data#readme
 Keywords: mcp,market-data,websocket,streaming
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Developers
-Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 3
 Classifier: Programming Language :: Python :: 3.8
 Classifier: Programming Language :: Python :: 3.9
@@ -24,23 +23,169 @@ Requires-Dist: mcp>=0.1.0
 Requires-Dist: websockets>=12.0
 Dynamic: license-file
 
-Run Server
-`python3 src/server.py`
+# Ark Market Data MCP
 
-MCP Inspector
-`npx @modelcontextprotocol/inspector`
+An MCP (Model Context Protocol) server that streams real-time market data to Claude via WebSocket connection.
 
-### Roadmap
-  - Users run your MCP server on their machine
-  - Your MCP server connects to your hosted websocket (e.g., ws://your-server.com/market-data)
-  - Users just use the MCP; you handle the data streaming
-  - ✅ Simpler for users
-  - ❌ You host and pay for the infrastructure
+## Features
+
+- **Real-time Market Data Streaming** - Connects to a WebSocket server and buffers incoming market data
+- **MCP Integration** - Works seamlessly with Claude via the Model Context Protocol
+- **Configurable WebSocket URL** - Supports environment variable configuration for flexible deployment
+- **In-memory Buffering** - Efficiently buffers up to 500 messages with configurable size
+- **Auto-reconnect** - Automatically reconnects on connection failures with exponential backoff
+
+## Installation
+
+### Via PyPI
+
+```bash
+pip install ark-market-data-mcp
+```
+
+### From Source
+
+```bash
+git clone https://github.com/arkhamides/mcp-market-data.git
+cd ark-market-data-mcp
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e .
+```
+
+## Quick Start
+
+### 1. Set up your WebSocket endpoint
+
+The MCP server connects to a WebSocket at `ws://localhost:9002` by default, you should override this:
+
+```bash
+export WS_URI=ws://your-websocket-url.com
+```
+
+### 2. Add to Claude
+
+```bash
+export WS_URI=ws://your-websocket-url.com
+claude mcp add ark-market-data ark-market-data-mcp
+```
+
+### 3. Use with Claude
+
+```bash
+claude chat
+```
+
+Ask Claude to use the market data tools, e.g., "What's the latest market data?"
+
+## Configuration
+
+### Environment Variables
+
+- `WS_URI` - WebSocket server URL (default: `ws://localhost:9002`)
+
+```bash
+export WS_URI=wss://abc123.ngrok.io
+```
 
 
-## Should I use grok http? If so, Will I need to turn my MCP responses to HTTP too?
+## Available Tools
 
+The MCP server exposes the following tools for Claude:
 
+- **`get_latest_message`** - Get the most recent market message from the stream
+- **`get_recent_messages`** - Get the last N messages (default: 10, max: 500)
+- **`get_stream_status`** - Check WebSocket connection status and buffer statistics
+- **`clear_buffer`** - Clear the message buffer
 
-## How to use 
-claude mcp add ark-market-data sh -c "WS_URI=wss://abc123.ngrok.io python -m ark_market_data_mcp"
+## Development
+
+### Run the server locally
+
+```bash
+source venv/bin/activate
+WS_URI=ws://your-url python3 -m ark_market_data_mcp
+```
+
+### Test with MCP Inspector
+
+```bash
+# Terminal 1: Start the server
+source venv/bin/activate
+WS_URI=ws://your-url python3 -m ark_market_data_mcp
+
+# Terminal 2: Open the MCP Inspector
+npx @modelcontextprotocol/inspector
+```
+
+Open `http://localhost:5173` in your browser to test tools and messages.
+
+### Run tests
+
+```bash
+pytest
+```
+
+## Architecture
+
+```
+┌─────────────────────────┐
+│     Claude (User)       │
+└────────────┬────────────┘
+             │
+             │ (via stdio)
+             │
+┌────────────▼────────────┐
+│   MCP Server (Python)   │
+│  - Listens on stdio     │
+│  - Exposes tools        │
+└────────────┬────────────┘
+             │
+             │ (WebSocket)
+             │
+┌────────────▼───────────────┐
+│   Ark Market Data Server   │
+│    (Remote WebSocket)      │
+└────────────────────────────┘
+```
+
+## Deployment Options
+
+### Connecting to the websocket
+
+To connect to the WebSocket server, use the WS_URI env variable:
+
+```bash
+# Add to Claude
+export WS_URI=wss://7.tcp.eu.ngrok.io:10542
+claude mcp add ark-market-data ark-market-data-mcp
+```
+
+## Troubleshooting
+
+### Connection Refused
+
+If you see "Connection refused" errors:
+- Ensure your WebSocket server is running
+- Verify the `WS_URI` environment variable is set correctly
+- Check firewall settings if using a remote server
+
+### No Messages Received
+
+- Verify the WebSocket server is sending data in the expected format
+- Check the logs: they show all incoming messages
+- Use the `get_stream_status` tool to verify connection status
+
+### MCP Tools Not Showing Up
+
+- Restart Claude after adding the MCP
+- Check that the server starts without errors
+- Verify the MCP was added correctly: `claude mcp list`
+
+## License
+
+MIT
+
+## Author
+
+arkhamides
