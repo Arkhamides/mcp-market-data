@@ -1,0 +1,46 @@
+Metadata-Version: 2.4
+Name: ark-market-data-mcp
+Version: 0.1.0
+Summary: MCP server for streaming market data via WebSocket
+Author-email: arkhamides <your-email@example.com>
+License: MIT
+Project-URL: Homepage, https://github.com/arkhamides/ark-market-data-mcp
+Project-URL: Repository, https://github.com/arkhamides/ark-market-data-mcp
+Project-URL: Documentation, https://github.com/arkhamides/ark-market-data-mcp#readme
+Keywords: mcp,market-data,websocket,streaming
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: mcp>=0.1.0
+Requires-Dist: websockets>=12.0
+Dynamic: license-file
+
+Run Server
+`python3 src/server.py`
+
+MCP Inspector
+`npx @modelcontextprotocol/inspector`
+
+### Roadmap
+  - Users run your MCP server on their machine
+  - Your MCP server connects to your hosted websocket (e.g., ws://your-server.com/market-data)
+  - Users just use the MCP; you handle the data streaming
+  - ✅ Simpler for users
+  - ❌ You host and pay for the infrastructure
+
+
+## Should I use grok http? If so, Will I need to turn my MCP responses to HTTP too?
+
+
+
+## How to use 
+claude mcp add ark-market-data sh -c "WS_URI=wss://abc123.ngrok.io python -m ark_market_data_mcp"
