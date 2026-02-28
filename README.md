@@ -21,7 +21,7 @@ pip install ark-market-data-mcp
 ### From Source
 
 ```bash
-git clone https://github.com/arkhamides/ark-market-data-mcp.git
+git clone https://github.com/arkhamides/mcp-market-data.git
 cd ark-market-data-mcp
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -32,7 +32,7 @@ pip install -e .
 
 ### 1. Set up your WebSocket endpoint
 
-The MCP server connects to a WebSocket at `ws://localhost:9002` by default, but you can override this:
+The MCP server connects to a WebSocket at `ws://localhost:9002` by default, you should override this:
 
 ```bash
 export WS_URI=ws://your-websocket-url.com
@@ -59,17 +59,10 @@ Ask Claude to use the market data tools, e.g., "What's the latest market data?"
 
 - `WS_URI` - WebSocket server URL (default: `ws://localhost:9002`)
 
-Example with ngrok:
-
 ```bash
 export WS_URI=wss://abc123.ngrok.io
 ```
 
-Example with Cloudflare Tunnel:
-
-```bash
-export WS_URI=wss://your-domain.cloudflare.dev
-```
 
 ## Available Tools
 
@@ -86,7 +79,7 @@ The MCP server exposes the following tools for Claude:
 
 ```bash
 source venv/bin/activate
-WS_URI=wss://your-url python3 -m ark_market_data_mcp
+WS_URI=ws://your-url python3 -m ark_market_data_mcp
 ```
 
 ### Test with MCP Inspector
@@ -94,7 +87,7 @@ WS_URI=wss://your-url python3 -m ark_market_data_mcp
 ```bash
 # Terminal 1: Start the server
 source venv/bin/activate
-WS_URI=wss://your-url python3 -m ark_market_data_mcp
+WS_URI=ws://your-url python3 -m ark_market_data_mcp
 
 # Terminal 2: Open the MCP Inspector
 npx @modelcontextprotocol/inspector
@@ -125,45 +118,21 @@ pytest
              │
              │ (WebSocket)
              │
-┌────────────▼────────────┐
-│  Market Data Server     │
-│  (Remote WebSocket)     │
-└─────────────────────────┘
+┌────────────▼───────────────┐
+│   Ark Market Data Server   │
+│    (Remote WebSocket)      │
+└────────────────────────────┘
 ```
 
 ## Deployment Options
 
-### Local WebSocket with ngrok
+### Connecting to the websocket
 
-For testing with a local WebSocket server exposed publicly:
+To connect to the WebSocket server, use the WS_URI env variable:
 
 ```bash
-# Terminal 1: Start your local WebSocket server (on port 9002)
-# ...your server...
-
-# Terminal 2: Expose with ngrok
-ngrok tcp 9002
-# Note the URL: tcp://...
-
-# Terminal 3: Add to Claude
+# Add to Claude
 export WS_URI=wss://7.tcp.eu.ngrok.io:10542
-claude mcp add ark-market-data ark-market-data-mcp
-```
-
-### Cloudflare Tunnel (Recommended)
-
-For a stable, free alternative to ngrok:
-
-```bash
-# Terminal 1: Start your local WebSocket server (on port 9002)
-# ...your server...
-
-# Terminal 2: Create a Cloudflare Tunnel
-cloudflare tunnel run ark-market-data
-# Get your stable URL from the output
-
-# Terminal 3: Add to Claude
-export WS_URI=wss://your-domain.cloudflare.dev
 claude mcp add ark-market-data ark-market-data-mcp
 ```
 

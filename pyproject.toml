@@ -9,7 +9,7 @@ description = "MCP server for streaming market data via WebSocket"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
-    {name = "arkhamides", email = "your-email@example.com"}
+    {name = "arkhamides", email = "joearchondis@gmail.com"}
 ]
 license = {text = "MIT"}
 keywords = ["mcp", "market-data", "websocket", "streaming"]
@@ -29,9 +29,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/arkhamides/ark-market-data-mcp"
-Repository = "https://github.com/arkhamides/ark-market-data-mcp"
-Documentation = "https://github.com/arkhamides/ark-market-data-mcp#readme"
+Homepage = "https://github.com/arkhamides/mcp-market-data"
+Repository = "https://github.com/arkhamides/mcp-market-data"
+Documentation = "https://github.com/arkhamides/mcp-market-data#readme"
 
 [project.scripts]
 ark-market-data-mcp = "ark_market_data_mcp.server:main"
