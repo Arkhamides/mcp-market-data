@@ -74,6 +74,54 @@ source venv/bin/activate
 python3 -m ark_market_data_mcp
 ```
 
+## Docker (HTTP Transport)
+
+The HTTP transport runs the MCP server over HTTP/SSE, suitable for remote clients and containerised deployments.
+
+### Build the image
+
+```bash
+docker build -t ark-market-data-mcp .
+```
+
+### Run the container
+
+```bash
+docker run -d \
+  -p 8000:8000 \
+  -e WS_URI=ws://your-websocket-url.com \
+  --name ark-market-data \
+  ark-market-data-mcp
+```
+
+The server will be available at `http://localhost:8000/sse`.
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WS_URI` | `ws://localhost:9002` | Upstream WebSocket market data endpoint |
+| `HTTP_HOST` | `0.0.0.0` | Bind address |
+| `HTTP_PORT` | `8000` | Bind port |
+
+### Connect Claude to the HTTP server
+
+Add the running container as an MCP server in Claude's config:
+
+```json
+{
+  "mcpServers": {
+    "ark-market-data": {
+      "url": "http://localhost:8000/sse"
+    }
+  }
+}
+```
+
+> **Note:** HTTP/SSE transport has higher latency (~100–500 ms per tool call) than stdio (~5–10 ms). Use Docker when you need remote access; use stdio for local, low-latency use.
+
+---
+
 ## Development
 
 ### Test with MCP Inspector
