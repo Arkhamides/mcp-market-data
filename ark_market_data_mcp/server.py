@@ -18,7 +18,7 @@ async def _list_tools():
 async def _call_tool(name, arguments):
     return await tools_module.call_tool(name, arguments, state)
 
-async def main():
+async def _main():
     logger.info("Starting WebSocket streaming task...")
     stream_task = asyncio.create_task(connect_and_stream(state))
 
@@ -33,5 +33,11 @@ async def main():
         except asyncio.CancelledError:
             pass
 
+
+def main():
+    """Entry point wrapper for console_scripts."""
+    asyncio.run(_main())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

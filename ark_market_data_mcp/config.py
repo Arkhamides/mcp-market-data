@@ -10,6 +10,9 @@ SUBSCRIBE_MSG = {"event": "subscribe_aggregated_market"}
 # Max messages kept in buffer
 MAX_BUFFER_SIZE = 500
 
+# Max concurrent alerts
+MAX_ALERTS = 50
+
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("market-mcp")
