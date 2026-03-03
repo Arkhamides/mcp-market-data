@@ -32,6 +32,11 @@ async def connect_and_stream(state: MarketState) -> None:
 
                         state.add_message(raw_message, parsed, MAX_BUFFER_SIZE)
 
+                        # Check alerts after every new message
+                        triggered = state.alert_manager.check(list(state.buffer))
+                        for alert in triggered:
+                            logger.info(f"[ALERT TRIGGERED] {alert}")
+
             except (websockets.exceptions.ConnectionClosed, ConnectionRefusedError, OSError) as e:
                 logger.warning(f"WebSocket error: {e}. Reconnecting in 3s...")
                 state.ws_connection = None
