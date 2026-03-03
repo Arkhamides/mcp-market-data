@@ -5,7 +5,7 @@ from mcp.types import Tool, TextContent
 
 from .config import WS_URI, MAX_ALERTS
 from .state import MarketState
-from .analysis import compute_summary
+from .market.analysis import compute_summary
 
 
 def list_tools() -> list[Tool]:

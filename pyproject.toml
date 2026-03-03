@@ -36,8 +36,8 @@ Repository = "https://github.com/arkhamides/mcp-market-data"
 Documentation = "https://github.com/arkhamides/mcp-market-data#readme"
 
 [project.scripts]
-ark-market-data-mcp = "ark_market_data_mcp.stdio_server:main"
-ark-market-data-mcp-http = "ark_market_data_mcp.http_server:main"
+ark-market-data-mcp = "ark_market_data_mcp.transports.stdio:main"
+ark-market-data-mcp-http = "ark_market_data_mcp.transports.http:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -1,9 +1,9 @@
 import asyncio
 from mcp.server.stdio import stdio_server
 
-from .config import logger
-from .server import app, state
-from .stream import connect_and_stream
+from ..config import logger
+from ..server import app, state
+from ..market.stream import connect_and_stream
 
 
 async def _main():

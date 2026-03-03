@@ -4,8 +4,6 @@ Runs the same MCP app as server.py but over HTTP using Server-Sent Events
 instead of stdio. Useful for Docker deployments and remote clients.
 
 Usage:
-    python -m ark_market_data_mcp.http_server
-    # or via entry point:
     ark-market-data-mcp-http
 
 Environment variables:
@@ -24,9 +22,9 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route
 
-from .config import logger
-from .server import app, state
-from .stream import connect_and_stream
+from ..config import logger
+from ..server import app, state
+from ..market.stream import connect_and_stream
 
 
 def _build_starlette_app() -> Starlette:
