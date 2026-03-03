@@ -45,7 +45,7 @@ ark_market_data_mcp/
 
 ### `config.py`
 Reads environment variables and defines constants:
-- `WS_URI` — WebSocket endpoint (default: `ws://localhost:9002`)
+- `WS_URI` — WebSocket endpoint
 - `SUBSCRIBE_MSG` — subscription payload sent on connect
 - `MAX_BUFFER_SIZE` — circular buffer cap (500 messages)
 
@@ -90,28 +90,6 @@ Orchestrates startup:
 
 - `mcp >= 0.1.0` — Anthropic's MCP framework
 - `websockets >= 12.0` — WebSocket client
-
-## Running Locally
-
-```bash
-pip install -e .
-export WS_URI=ws://localhost:9002
-ark-market-data-mcp
-# or
-python -m ark_market_data_mcp
-```
-
-## Adding to Claude
-
-```bash
-claude mcp add ark-market-data ark-market-data-mcp
-```
-
-Or with a custom WebSocket URI:
-
-```bash
-claude mcp add ark-market-data -e WS_URI=wss://your-server/ws ark-market-data-mcp
-```
 
 ## Design Patterns
 

@@ -32,8 +32,6 @@ pip install -e .
 
 ### 1. Set up your WebSocket endpoint
 
-The MCP server connects to a WebSocket at `ws://localhost:9002` by default, you should override this:
-
 ```bash
 export WS_URI=ws://your-websocket-url.com
 ```
@@ -41,7 +39,6 @@ export WS_URI=ws://your-websocket-url.com
 ### 2. Add to Claude
 
 ```bash
-export WS_URI=ws://your-websocket-url.com
 claude mcp add ark-market-data ark-market-data-mcp
 ```
 
@@ -53,16 +50,6 @@ claude chat
 
 Ask Claude to use the market data tools, e.g., "What's the latest market data?"
 
-## Configuration
-
-### Environment Variables
-
-- `WS_URI` - WebSocket server URL (default: `ws://localhost:9002`)
-
-```bash
-export WS_URI=wss://abc123.ngrok.io
-```
-
 
 ## Available Tools
 
@@ -73,21 +60,28 @@ The MCP server exposes the following tools for Claude:
 - **`get_stream_status`** - Check WebSocket connection status and buffer statistics
 - **`clear_buffer`** - Clear the message buffer
 
-## Development
+## Connecting for the users of the app
 
-### Run the server locally
+### Remote server connection
+```
+https://mcp-market-data.com/mcp?api=YOUR_API_KEY
+```
+
+### Local server connection
 
 ```bash
 source venv/bin/activate
-WS_URI=ws://your-url python3 -m ark_market_data_mcp
+python3 -m ark_market_data_mcp
 ```
+
+## Development
 
 ### Test with MCP Inspector
 
 ```bash
 # Terminal 1: Start the server
 source venv/bin/activate
-WS_URI=ws://your-url python3 -m ark_market_data_mcp
+WS_URI=ws://your-websocket-url.com python3 -m ark_market_data_mcp
 
 # Terminal 2: Open the MCP Inspector
 npx @modelcontextprotocol/inspector
@@ -124,17 +118,6 @@ pytest
 └────────────────────────────┘
 ```
 
-## Deployment Options
-
-### Connecting to the websocket
-
-To connect to the WebSocket server, use the WS_URI env variable:
-
-```bash
-# Add to Claude
-export WS_URI=wss://7.tcp.eu.ngrok.io:10542
-claude mcp add ark-market-data ark-market-data-mcp
-```
 
 ## Troubleshooting
 

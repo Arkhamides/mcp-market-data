@@ -3,9 +3,9 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ark-market-data-mcp"
+name = "mcp-market-data"
 version = "0.1.1"
-description = "MCP server for streaming market data via WebSocket"
+description = "MCP server for streaming crypto market data via WebSocket"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
