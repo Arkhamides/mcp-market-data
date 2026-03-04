@@ -71,7 +71,18 @@ https://mcp-market-data.com/mcp?api=YOUR_API_KEY
 
 ```bash
 source venv/bin/activate
+```
+
+```bash
+# Defaults to stdio
 python3 -m ark_market_data_mcp
+
+# Explicitly use stdio
+python3 -m ark_market_data_mcp stdio
+
+# Use HTTP transport (Docker, remote clients)
+python3 -m ark_market_data_mcp http
+
 ```
 
 ## Development

@@ -26,6 +26,7 @@ from ..config import logger
 from ..server import app, state
 from ..market.stream import connect_and_stream
 
+from starlette.middleware.cors import CORSMiddleware
 
 def _build_starlette_app() -> Starlette:
     sse = SseServerTransport("/messages")
@@ -41,12 +42,24 @@ def _build_starlette_app() -> Starlette:
             )
         return Response()
 
-    return Starlette(
+    starlette_app = Starlette(
         routes=[
             Route("/sse", endpoint=handle_sse),
             Mount("/messages", app=sse.handle_post_message),
         ]
     )
+
+    # 🔥 Add CORS middleware
+    starlette_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # or ["http://localhost:5173"]
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=True,
+    )
+
+    return starlette_app
+
 
 
 async def _main() -> None:
