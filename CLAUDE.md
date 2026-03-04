@@ -7,7 +7,7 @@ This is a **Model Context Protocol (MCP) server** written in Python that bridges
 - **Package**: `ark-market-data-mcp`
 - **Version**: 0.1.1
 - **Python**: >= 3.8
-- **Entry point**: `ark_market_data_mcp.server:main`
+- **Entry point**: `ark_market_data_mcp.transports.stdio:main`
 
 ## Architecture
 

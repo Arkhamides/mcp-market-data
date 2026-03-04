@@ -2,7 +2,7 @@ from collections import deque
 from collections.abc import Sequence
 from typing import Any
 
-from .alerts import AlertManager
+from .market.alerts import AlertManager
 from .config import MAX_BUFFER_SIZE
 
 

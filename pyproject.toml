@@ -26,6 +26,8 @@ classifiers = [
 dependencies = [
     "mcp>=0.1.0",
     "websockets>=12.0",
+    "uvicorn>=0.27.0",
+    "starlette>=0.36.0",
 ]
 
 [project.urls]
@@ -34,7 +36,8 @@ Repository = "https://github.com/arkhamides/mcp-market-data"
 Documentation = "https://github.com/arkhamides/mcp-market-data#readme"
 
 [project.scripts]
-ark-market-data-mcp = "ark_market_data_mcp.server:main"
+ark-market-data-mcp = "ark_market_data_mcp.transports.stdio:main"
+ark-market-data-mcp-http = "ark_market_data_mcp.transports.http:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -2,8 +2,8 @@ import asyncio
 import json
 import websockets
 
-from .config import WS_URI, SUBSCRIBE_MSG, MAX_BUFFER_SIZE, logger
-from .state import MarketState
+from ..config import WS_URI, SUBSCRIBE_MSG, MAX_BUFFER_SIZE, logger
+from ..state import MarketState
 
 
 async def connect_and_stream(state: MarketState) -> None:
