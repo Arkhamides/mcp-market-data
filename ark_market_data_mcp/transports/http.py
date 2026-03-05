@@ -28,26 +28,35 @@ from ..market.stream import connect_and_stream
 
 from starlette.middleware.cors import CORSMiddleware
 
-def _build_starlette_app() -> Starlette:
+
+def _build_starlette_app():
     sse = SseServerTransport("/messages")
 
-    async def handle_sse(request: Request) -> Response:
-        async with sse.connect_sse(
-            request.scope, request.receive, request._send
-        ) as (read_stream, write_stream):
+    async def handle_sse(scope, receive, send):
+        """Raw ASGI app for SSE endpoint."""
+        async with sse.connect_sse(scope, receive, send) as (read_stream, write_stream):
             await app.run(
                 read_stream,
                 write_stream,
                 app.create_initialization_options(),
             )
-        return Response()
+
+    async def root(request: Request) -> Response:
+        return Response("MCP Server running. Connect to /sse for MCP.")
 
     starlette_app = Starlette(
         routes=[
-            Route("/sse", endpoint=handle_sse),
+            Route("/", endpoint=root),
             Mount("/messages", app=sse.handle_post_message),
         ]
     )
+
+    # Middleware to intercept /sse at ASGI level before Starlette routing
+    async def sse_middleware(scope, receive, send):
+        if scope["type"] == "http" and scope["path"] == "/sse":
+            await handle_sse(scope, receive, send)
+        else:
+            await starlette_app(scope, receive, send)
 
     # 🔥 Add CORS middleware
     starlette_app.add_middleware(
@@ -58,7 +67,7 @@ def _build_starlette_app() -> Starlette:
         allow_credentials=True,
     )
 
-    return starlette_app
+    return sse_middleware
 
 
 
