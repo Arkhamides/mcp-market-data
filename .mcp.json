@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "ark-market-data": {
-      "command": "/home/arkhamides/Development/Ark_Market_Data/MCP-server/venv/bin/python",
-      "args": ["server.py"],
-      "cwd": "/home/arkhamides/Development/Ark_Market_Data/MCP-server/ark_market_data_mcp"
+      "type": "streamable-http",
+      "url": "http://localhost:3001/mcp"
     }
   }
 }
