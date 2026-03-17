@@ -18,12 +18,10 @@
 
 **Goal:** Users can try the app immediately with no friction. Authenticated users get persistent state across sessions.
 
-**Phase 1 — Anonymous experience (MCP server)**
+**Phase 1 — Anonymous experience (MCP server)** ✅
 
-Currently all state (`AlertManager`, buffer) is server-wide and shared across every connected user. Fix this by keying state to the MCP session ID provided by the Streamable HTTP transport, so each user gets isolated ephemeral state that is cleaned up when their session ends.
-
-- Per-session `AlertManager` and state (keyed by session ID)
-- Session cleanup on disconnect
+- ~~Per-session `AlertManager` and state (keyed by session ID)~~ (done — `SessionRegistry` in `state.py`)
+- Session cleanup on disconnect (deferred to Phase 2)
 
 **Phase 2 — Auth & persistence (SvelteKit + MCP server)**
 
