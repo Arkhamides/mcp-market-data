@@ -1,26 +1,31 @@
-"""HTTP/SSE transport for the MCP market data server.
+"""HTTP/Streamable transport for the MCP market data server.
 
-Runs the same MCP app as server.py but over HTTP using Server-Sent Events
-instead of stdio. Useful for Docker deployments and remote clients.
+Uses the Streamable HTTP transport (MCP 1.26+) which provides bidirectional
+communication over a single HTTP POST endpoint (/mcp) instead of the older
+SSE transport. This is compatible with Claude Code v1.26+ and other modern
+MCP clients.
 
 Usage:
     ark-market-data-mcp-http
 
 Environment variables:
     HTTP_HOST  — bind address (default: 0.0.0.0)
-    HTTP_PORT  — bind port    (default: 8000)
+    HTTP_PORT  — bind port    (default: 3001)
     WS_URI     — upstream WebSocket endpoint (see config.py)
 """
 
 import asyncio
+import contextlib
 import os
+from collections.abc import AsyncIterator
 
 import uvicorn
-from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
 from ..config import logger
 from ..server import app, state
@@ -28,30 +33,39 @@ from ..market.stream import connect_and_stream
 
 
 def _build_starlette_app() -> Starlette:
-    sse = SseServerTransport("/messages")
+    session_manager = StreamableHTTPSessionManager(app=app, stateless=False)
 
-    async def handle_sse(request: Request) -> Response:
-        async with sse.connect_sse(
-            request.scope, request.receive, request._send
-        ) as (read_stream, write_stream):
-            await app.run(
-                read_stream,
-                write_stream,
-                app.create_initialization_options(),
-            )
-        return Response()
+    @contextlib.asynccontextmanager
+    async def lifespan(starlette_app: Starlette) -> AsyncIterator[None]:
+        async with session_manager.run():
+            yield
 
-    return Starlette(
+    async def root(request: Request) -> Response:
+        return Response("MCP Server running. Connect to /mcp for MCP.")
+
+    async def handle_mcp(scope, receive, send):
+        await session_manager.handle_request(scope, receive, send)
+
+    starlette_app = Starlette(
+        lifespan=lifespan,
         routes=[
-            Route("/sse", endpoint=handle_sse),
-            Mount("/messages", app=sse.handle_post_message),
-        ]
+            Route("/", endpoint=root),
+            Mount("/mcp", app=handle_mcp),
+        ],
+    )
+
+    return CORSMiddleware(
+        app=starlette_app,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=True,
     )
 
 
 async def _main() -> None:
     host = os.getenv("HTTP_HOST", "0.0.0.0")
-    port = int(os.getenv("HTTP_PORT", "8000"))
+    port = int(os.getenv("HTTP_PORT", "3001"))
 
     logger.info("Starting WebSocket streaming task...")
     stream_task = asyncio.create_task(connect_and_stream(state))
@@ -64,7 +78,7 @@ async def _main() -> None:
     )
     server = uvicorn.Server(config)
 
-    logger.info("Starting MCP server over HTTP/SSE on %s:%s ...", host, port)
+    logger.info("Starting MCP server over HTTP/Streamable on %s:%s ...", host, port)
     try:
         await server.serve()
     finally:

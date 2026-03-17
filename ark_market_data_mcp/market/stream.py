@@ -22,7 +22,7 @@ async def connect_and_stream(state: MarketState) -> None:
                     message_count = 0
                     async for raw_message in ws:
                         message_count += 1
-                        logger.info(f"[Message #{message_count}] Received: {raw_message[:100]}...")
+                        # logger.info(f"[Message #{message_count}] Received: {raw_message[:100]}...")
 
                         try:
                             parsed = json.loads(raw_message)

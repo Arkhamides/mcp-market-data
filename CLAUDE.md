@@ -17,7 +17,7 @@ Claude (User)
     ▼
 MCP Server (server.py)
     ├── Shared State (state.py)   ← in-memory circular buffer
-    ├── Tools (tools.py)          ← 4 MCP tools exposed to Claude
+    ├── Tools (tools.py)          ← 8 MCP tools exposed to Claude
     └── WebSocket Task (stream.py)
             │  WebSocket (WS_URI)
             ▼
@@ -32,13 +32,21 @@ Two concurrent async tasks run inside the server:
 
 ```
 ark_market_data_mcp/
-├── __init__.py     # Package init
-├── __main__.py     # Async entry point (python -m ark_market_data_mcp)
-├── config.py       # Environment config & constants
-├── server.py       # MCP server orchestration + main()
-├── state.py        # MarketState class (shared in-memory state)
-├── stream.py       # WebSocket connection + auto-reconnect loop
-└── tools.py        # MCP tool definitions and handlers
+├── __init__.py          # Package init
+├── __main__.py          # Async entry point (python -m ark_market_data_mcp)
+├── config.py            # Environment config & constants
+├── server.py            # MCP server orchestration + main()
+├── state.py             # MarketState class (shared in-memory state)
+├── tools.py             # MCP tool definitions and handlers
+├── market/
+│   ├── __init__.py      # Market subpackage
+│   ├── stream.py        # WebSocket connection + auto-reconnect loop
+│   ├── alerts.py        # AlertManager class for price/percent change alerts
+│   └── analysis.py      # Market analysis functions (compute_summary)
+└── transports/
+    ├── __init__.py      # Transports subpackage
+    ├── stdio.py         # Stdio transport entry point
+    └── http.py          # HTTP transport (alternative transport)
 ```
 
 ## Key Modules
@@ -51,9 +59,11 @@ Reads environment variables and defines constants:
 
 ### `state.py` — `MarketState`
 Shared state object passed between the streaming task and tool handlers:
-- `buffer: list[dict]` — circular buffer of parsed messages
+- `buffer: deque[dict]` — circular buffer of parsed messages (max 500)
 - `latest_message: str` — raw text of the most recent message
 - `ws_connection` — active WebSocket connection (or `None`)
+- `message_count: int` — lifetime message counter (never resets)
+- `alert_manager: AlertManager` — manages price and percent change alerts
 - Methods: `add_message()`, `get_latest()`, `get_recent(count)`, `clear()`
 
 ### `stream.py` — `connect_and_stream(state)`
@@ -64,7 +74,7 @@ Background async task:
 4. Auto-reconnects with exponential backoff on failure (3s / 5s delays)
 
 ### `tools.py` — MCP Tools
-Exposes 4 tools to Claude:
+Exposes 8 tools to Claude:
 
 | Tool | Input | Description |
 |------|-------|-------------|
@@ -72,6 +82,10 @@ Exposes 4 tools to Claude:
 | `get_recent_messages` | `count` (1–500, default 10) | Returns last N buffered messages as JSON |
 | `get_stream_status` | — | Returns connection status and buffer info |
 | `clear_buffer` | — | Clears the in-memory message buffer |
+| `get_market_summary` | `symbol` (e.g., 'BTC-USD', defaults to most recent) | Returns structured order book analysis (best bid/ask, spread, volumes, imbalance, price change) |
+| `set_price_alert` | `symbol`, `direction` ("above"/"below"), `price`, optional `label` | Sets a price alert that triggers when price crosses threshold |
+| `set_percent_change_alert` | `symbol`, `threshold_pct`, optional `window` (default 10) | Sets a percent change alert that triggers on price movement |
+| `get_alerts` | — | Returns all active and triggered alerts with their current status |
 
 ### `server.py` — `main()`
 Orchestrates startup:
