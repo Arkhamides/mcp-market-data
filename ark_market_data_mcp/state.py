@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from .market.alerts import AlertManager
-from .config import MAX_BUFFER_SIZE
+from .config import MAX_BUFFER_SIZE, logger
 
 
 class MarketState:
@@ -14,7 +14,6 @@ class MarketState:
         self.latest_message: str | None = None
         self.ws_connection = None  # type: ignore[assignment]
         self.message_count: int = 0  # Lifetime counter, never resets
-        self.alert_manager: AlertManager = AlertManager()
 
     def add_message(self, raw: str, parsed: dict[str, Any], max_size: int = MAX_BUFFER_SIZE) -> None:
         self.latest_message = raw
@@ -32,3 +31,21 @@ class MarketState:
 
     def clear(self) -> None:
         self.buffer.clear()
+
+
+class SessionRegistry:
+    """Maps MCP session IDs to per-session AlertManagers."""
+
+    def __init__(self) -> None:
+        self._sessions: dict[str, AlertManager] = {}
+
+    def get_or_create(self, session_id: str) -> AlertManager:
+        if session_id not in self._sessions:
+            self._sessions[session_id] = AlertManager()
+        return self._sessions[session_id]
+
+    def check_all(self, messages: list[dict[str, Any]]) -> None:
+        for session_id, alert_manager in self._sessions.items():
+            triggered = alert_manager.check(messages)
+            for alert in triggered:
+                logger.info(f"[ALERT TRIGGERED] session={session_id} {alert}")

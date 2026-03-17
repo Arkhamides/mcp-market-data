@@ -3,10 +3,10 @@ import json
 import websockets
 
 from ..config import WS_URI, SUBSCRIBE_MSG, MAX_BUFFER_SIZE, logger
-from ..state import MarketState
+from ..state import MarketState, SessionRegistry
 
 
-async def connect_and_stream(state: MarketState) -> None:
+async def connect_and_stream(state: MarketState, session_registry: SessionRegistry) -> None:
     """Background task: maintains WebSocket connection to C++ server and buffers incoming data."""
     try:
         while True:
@@ -32,10 +32,8 @@ async def connect_and_stream(state: MarketState) -> None:
 
                         state.add_message(raw_message, parsed, MAX_BUFFER_SIZE)
 
-                        # Check alerts after every new message
-                        triggered = state.alert_manager.check(list(state.buffer))
-                        for alert in triggered:
-                            logger.info(f"[ALERT TRIGGERED] {alert}")
+                        # Check alerts for all active sessions
+                        session_registry.check_all(list(state.buffer))
 
             except (websockets.exceptions.ConnectionClosed, ConnectionRefusedError, OSError) as e:
                 logger.warning(f"WebSocket error: {e}. Reconnecting in 3s...")

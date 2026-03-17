@@ -30,7 +30,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
 from ..config import WS_URI, logger
-from ..server import app, state
+from ..server import app, state, session_registry
 from ..market.stream import connect_and_stream
 
 
@@ -100,7 +100,7 @@ async def _main() -> None:
     port = int(os.getenv("HTTP_PORT", "3001"))
 
     logger.info("Starting WebSocket streaming task...")
-    stream_task = asyncio.create_task(connect_and_stream(state))
+    stream_task = asyncio.create_task(connect_and_stream(state, session_registry))
 
     config = uvicorn.Config(
         app=_build_starlette_app(),
