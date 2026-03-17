@@ -5,20 +5,32 @@
 **Goal:** Working MCP server that streams real-time market data to Claude via WebSocket.
 
 - stdio transport (`transports/stdio.py`)
-- HTTP/SSE transport (`transports/http.py`)
+- HTTP/Streamable transport — MCP 1.26+ (`transports/http.py`) with WebSocket proxy at `/websocket`
 - Circular buffer (500 messages)
 - Tools: `get_latest_message`, `get_recent_messages`, `get_stream_status`, `clear_buffer`
+- Tools: `get_market_summary`, `set_price_alert`, `set_percent_change_alert`, `get_alerts`
+- `AlertManager` — price threshold and percent-change alerts
 - Auto-reconnect with exponential backoff
 
 ---
 
----
+## 🔲 v0.2 — Session Isolation, Auth & Persistence
 
-## 🔲 v0.2 — Auth & supabase
+**Goal:** Users can try the app immediately with no friction. Authenticated users get persistent state across sessions.
 
-**Goal:** Have people auth and connect via gmail or something like that.
+**Phase 1 — Anonymous experience (MCP server)**
 
-**Issues:** There is no persistent database, for example, the alerts that are created are created server wide, meaning the alerts are created for everyone who enters the website. I want people to be able to test out the website immediately once they try it out. I also want people to have a persistent database.
+Currently all state (`AlertManager`, buffer) is server-wide and shared across every connected user. Fix this by keying state to the MCP session ID provided by the Streamable HTTP transport, so each user gets isolated ephemeral state that is cleaned up when their session ends.
+
+- Per-session `AlertManager` and state (keyed by session ID)
+- Session cleanup on disconnect
+
+**Phase 2 — Auth & persistence (SvelteKit + MCP server)**
+
+- **SvelteKit** owns the auth flow: Google OAuth via Supabase Auth, session cookies, redirects
+- **MCP server** owns persistent data: reads/writes alerts and user preferences to Supabase using the `user_id` from the JWT passed by SvelteKit on each request. Alert evaluation must stay in the MCP server since it runs inside the stream loop.
+- On auth: promote the current ephemeral session state to the user's Supabase record
+- On return visit: load persisted alerts from Supabase into the new session
 
 ---
 
@@ -27,7 +39,7 @@
 **Goal:** Make Claude genuinely useful for trading decisions.
 
 **Analysis tools**
-- `get_market_summary` — bid/ask/spread/imbalance/price change (implemented, needs polish)
+- `get_market_summary` — bid/ask/spread/imbalance/price change (implemented, needs data quality improvements and additional fields e.g. 24hr change, VWAP)
 - Volatility metrics
 - Volume spike detection
 - Trend direction
