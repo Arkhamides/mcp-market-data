@@ -19,15 +19,17 @@ import contextlib
 import os
 from collections.abc import AsyncIterator
 
+import websockets
 import uvicorn
 from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.routing import Mount, Route
+from starlette.routing import Mount, Route, WebSocketRoute
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
-from ..config import logger
+from ..config import WS_URI, logger
 from ..server import app, state
 from ..market.stream import connect_and_stream
 
@@ -46,11 +48,41 @@ def _build_starlette_app() -> Starlette:
     async def handle_mcp(scope, receive, send):
         await session_manager.handle_request(scope, receive, send)
 
+    async def ws_proxy(websocket: WebSocket):
+        await websocket.accept()
+        try:
+            async with websockets.connect(WS_URI) as upstream:
+                async def upstream_to_client():
+                    async for message in upstream:
+                        await websocket.send_text(message)
+
+                async def client_to_upstream():
+                    while True:
+                        data = await websocket.receive_text()
+                        await upstream.send(data)
+
+                tasks = [
+                    asyncio.create_task(upstream_to_client()),
+                    asyncio.create_task(client_to_upstream()),
+                ]
+                try:
+                    await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                finally:
+                    for t in tasks:
+                        t.cancel()
+                    await asyncio.gather(*tasks, return_exceptions=True)
+        except (WebSocketDisconnect, Exception):
+            pass
+        finally:
+            with contextlib.suppress(Exception):
+                await websocket.close()
+
     starlette_app = Starlette(
         lifespan=lifespan,
         routes=[
             Route("/", endpoint=root),
             Mount("/mcp", app=handle_mcp),
+            WebSocketRoute("/websocket", endpoint=ws_proxy),
         ],
     )
 
