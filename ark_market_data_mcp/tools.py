@@ -7,6 +7,7 @@ from mcp.types import Tool, TextContent
 from .config import WS_URI
 from .state import MarketState, SessionRegistry
 from .market.analysis import compute_summary
+from .market.store import OHLCVStore, TIER_LIMITS, OHLCV_TIER
 
 def _get_session_id(app: Server) -> str:
     try:
@@ -122,10 +123,78 @@ def list_tools() -> list[Tool]:
             description="Get all active and triggered alerts with their current status.",
             inputSchema={"type": "object", "properties": {}, "required": []},
         ),
+        Tool(
+            name="get_ohlcv",
+            description=(
+                "Get recent closed OHLCV candles for a symbol at a given resolution "
+                "(1m or 5m). Returns candles oldest-first. "
+                f"Free tier: up to {TIER_LIMITS['free']} candles."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "Market symbol (e.g. 'BTC-USD')",
+                    },
+                    "resolution": {
+                        "type": "string",
+                        "enum": ["1m", "5m"],
+                        "description": "Candle resolution (default: '1m')",
+                        "default": "1m",
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": f"Number of candles to return (default: 50, max: {TIER_LIMITS[OHLCV_TIER]})",
+                        "default": 50,
+                    },
+                },
+                "required": ["symbol"],
+            },
+        ),
+        Tool(
+            name="get_candles_range",
+            description=(
+                "Get OHLCV candles between two Unix timestamps (seconds, inclusive). "
+                "Returns candles oldest-first. "
+                f"Free tier: up to {TIER_LIMITS['free']} candles per query."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "Market symbol (e.g. 'BTC-USD')",
+                    },
+                    "resolution": {
+                        "type": "string",
+                        "enum": ["1m", "5m"],
+                        "description": "Candle resolution (default: '1m')",
+                        "default": "1m",
+                    },
+                    "start": {
+                        "type": "integer",
+                        "description": "Range start as Unix timestamp (seconds)",
+                    },
+                    "end": {
+                        "type": "integer",
+                        "description": "Range end as Unix timestamp (seconds)",
+                    },
+                },
+                "required": ["symbol", "start", "end"],
+            },
+        ),
     ]
 
 
-async def call_tool(name: str, arguments: dict[str, Any], app: Server, state: MarketState, session_registry: SessionRegistry) -> list[TextContent]:
+async def call_tool(
+    name: str,
+    arguments: dict[str, Any],
+    app: Server,
+    state: MarketState,
+    session_registry: SessionRegistry,
+    ohlcv_store: OHLCVStore = None,
+) -> list[TextContent]:
     if name == "get_latest_message":
         latest = state.get_latest()
         if latest is None:
@@ -198,6 +267,38 @@ async def call_tool(name: str, arguments: dict[str, Any], app: Server, state: Ma
         alerts = alert_manager.get_all()
         formatted = json.dumps(alerts, indent=2, default=str)
         return [TextContent(type="text", text=f"All Alerts ({len(alerts)} total):\n{formatted}")]
+
+    elif name == "get_ohlcv":
+        if ohlcv_store is None:
+            return [TextContent(type="text", text="Historical store not available.")]
+        symbol = arguments.get("symbol", "")
+        if not symbol:
+            return [TextContent(type="text", text="Error: symbol is required.")]
+        resolution = arguments.get("resolution", "1m")
+        count = int(arguments.get("count", 50))
+        candles = ohlcv_store.get_recent(symbol, resolution, count)
+        if not candles:
+            return [TextContent(type="text", text=f"No {resolution} candles found for {symbol} yet. Data accumulates as the stream runs.")]
+        return [TextContent(type="text", text=json.dumps(candles, indent=2))]
+
+    elif name == "get_candles_range":
+        if ohlcv_store is None:
+            return [TextContent(type="text", text="Historical store not available.")]
+        symbol = arguments.get("symbol", "")
+        if not symbol:
+            return [TextContent(type="text", text="Error: symbol is required.")]
+        resolution = arguments.get("resolution", "1m")
+        start = arguments.get("start")
+        end = arguments.get("end")
+        if start is None or end is None:
+            return [TextContent(type="text", text="Error: start and end timestamps are required.")]
+        start, end = int(start), int(end)
+        if start > end:
+            return [TextContent(type="text", text="Error: start must be <= end.")]
+        candles = ohlcv_store.get_range(symbol, resolution, start, end)
+        if not candles:
+            return [TextContent(type="text", text=f"No {resolution} candles found for {symbol} in the requested range.")]
+        return [TextContent(type="text", text=json.dumps(candles, indent=2))]
 
     else:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]

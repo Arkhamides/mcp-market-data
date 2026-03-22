@@ -8,14 +8,15 @@
 
 ---
 
-## 🔲 Phase A — Historical Data Layer
+## 🔄 Phase A — Historical Data Layer
 
 **Goal:** Give Claude access to enough history to run basic backtests.
 
-- OHLCV ingestion for 1–3 major pairs (BTC, ETH) at 1m/5m resolution
-- Local or Supabase-backed historical store
-- MCP tools: `get_ohlcv`, `get_historical_range`
-- Configurable depth limits per tier (free = shallow, paid = deeper)
+- ~~OHLCV ingestion for 1–3 major pairs (BTC, ETH) at 1m/5m resolution~~ (done — derived from live stream mid-price)
+- ~~Local SQLite-backed historical store~~ (done — `~/.ark-market-data/ohlcv.db`, override with `DATA_DIR`)
+- ~~MCP tools: `get_ohlcv`, `get_candles_range`~~ (done)
+- ~~Configurable depth limits per tier (free = shallow, paid = deeper)~~ (done — `OHLCV_TIER` env var, default `free` = 200 candles)
+- Supabase-backed store (deferred to v0.2 auth phase)
 
 ---
 

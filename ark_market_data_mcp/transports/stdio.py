@@ -2,13 +2,15 @@ import asyncio
 from mcp.server.stdio import stdio_server
 
 from ..config import logger
-from ..server import app, state, session_registry
+from ..server import app, state, session_registry, ohlcv_aggregator, ohlcv_store
 from ..market.stream import connect_and_stream
 
 
 async def _main():
     logger.info("Starting WebSocket streaming task...")
-    stream_task = asyncio.create_task(connect_and_stream(state, session_registry))
+    stream_task = asyncio.create_task(
+        connect_and_stream(state, session_registry, ohlcv_aggregator, ohlcv_store)
+    )
 
     try:
         logger.info("Starting MCP server over stdio...")
