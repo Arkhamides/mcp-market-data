@@ -1,11 +1,23 @@
 import json
 from typing import Any
 
+from mcp.server import Server
 from mcp.types import Tool, TextContent
 
-from .config import WS_URI, MAX_ALERTS
-from .state import MarketState
+from .config import WS_URI
+from .state import MarketState, SessionRegistry
 from .market.analysis import compute_summary
+
+def _get_session_id(app: Server) -> str:
+    try:
+        ctx = app.request_context
+        if ctx.request is not None:
+            sid = ctx.request.headers.get("mcp-session-id")
+            if sid:
+                return sid
+    except LookupError:
+        pass
+    return "stdio"
 
 
 def list_tools() -> list[Tool]:
@@ -113,7 +125,7 @@ def list_tools() -> list[Tool]:
     ]
 
 
-async def call_tool(name: str, arguments: dict[str, Any], state: MarketState) -> list[TextContent]:
+async def call_tool(name: str, arguments: dict[str, Any], app: Server, state: MarketState, session_registry: SessionRegistry) -> list[TextContent]:
     if name == "get_latest_message":
         latest = state.get_latest()
         if latest is None:
@@ -162,7 +174,8 @@ async def call_tool(name: str, arguments: dict[str, Any], state: MarketState) ->
         if direction not in ("above", "below"):
             return [TextContent(type="text", text="Error: direction must be 'above' or 'below'")]
 
-        alert_id = state.alert_manager.add_price_alert(symbol, direction, price, label)
+        alert_manager = session_registry.get_or_create(_get_session_id(app))
+        alert_id = alert_manager.add_price_alert(symbol, direction, price, label)
         return [TextContent(type="text", text=json.dumps({
             "alert_id": alert_id,
             "message": f"Price alert set for {symbol} (trigger if price goes {direction} {price})"
@@ -173,14 +186,16 @@ async def call_tool(name: str, arguments: dict[str, Any], state: MarketState) ->
         threshold_pct = float(arguments.get("threshold_pct"))
         window = int(arguments.get("window", 10))
 
-        alert_id = state.alert_manager.add_percent_change_alert(symbol, threshold_pct, window)
+        alert_manager = session_registry.get_or_create(_get_session_id(app))
+        alert_id = alert_manager.add_percent_change_alert(symbol, threshold_pct, window)
         return [TextContent(type="text", text=json.dumps({
             "alert_id": alert_id,
             "message": f"Percent change alert set for {symbol} (trigger if change >= ±{threshold_pct}% over {window} messages)"
         }, indent=2))]
 
     elif name == "get_alerts":
-        alerts = state.alert_manager.get_all()
+        alert_manager = session_registry.get_or_create(_get_session_id(app))
+        alerts = alert_manager.get_all()
         formatted = json.dumps(alerts, indent=2, default=str)
         return [TextContent(type="text", text=f"All Alerts ({len(alerts)} total):\n{formatted}")]
 

@@ -1,114 +1,99 @@
-# ARK Market Data MCP — Project Context
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Overview
 
-This is a **Model Context Protocol (MCP) server** written in Python that bridges Claude (or any MCP client) to a real-time market data WebSocket stream. It continuously receives market data from a remote WebSocket server and exposes it to Claude via MCP tools.
+MCP server written in Python that bridges Claude to a real-time market data WebSocket stream. Exposes 8 MCP tools for reading buffered market data and setting price alerts.
 
-- **Package**: `ark-market-data-mcp`
-- **Version**: 0.1.1
+- **Package**: `ark-market-data-mcp` / `mcp-market-data` (pyproject.toml name)
 - **Python**: >= 3.8
-- **Entry point**: `ark_market_data_mcp.transports.stdio:main`
+- **Entry points**: `ark-market-data-mcp` (stdio) and `ark-market-data-mcp-http` (HTTP)
+
+## Development Commands
+
+```bash
+# Install in editable mode (required before running)
+pip install -e .
+
+# Run stdio transport (for Claude Desktop / MCP CLI clients)
+ark-market-data-mcp
+# or
+python -m ark_market_data_mcp
+
+# Run HTTP transport (for Claude Code and modern MCP clients, binds to :3001)
+ark-market-data-mcp-http
+
+# Build distributable
+python -m build
+
+# Environment variables
+WS_URI=ws://localhost:9002    # upstream market data WebSocket
+HTTP_HOST=0.0.0.0             # HTTP transport bind address
+HTTP_PORT=3001                # HTTP transport port
+```
+
+No test suite exists yet.
 
 ## Architecture
 
+Two transports, one shared MCP app:
+
 ```
 Claude (User)
-    │  MCP Protocol (stdio)
-    ▼
-MCP Server (server.py)
-    ├── Shared State (state.py)   ← in-memory circular buffer
-    ├── Tools (tools.py)          ← 8 MCP tools exposed to Claude
-    └── WebSocket Task (stream.py)
-            │  WebSocket (WS_URI)
-            ▼
-    Remote Market Data Server
+    │
+    ├─ MCP stdio (transports/stdio.py) ─────────────────┐
+    │                                                    │
+    └─ MCP HTTP/Streamable (transports/http.py, :3001) ─┤
+              also exposes /websocket proxy              │
+                                                         ▼
+                                                  server.py
+                                              (app + state singletons)
+                                                    │         │
+                                               tools.py   state.py
+                                                              │
+                                                        stream.py (background task)
+                                                              │
+                                                    Remote WebSocket (WS_URI)
 ```
 
-Two concurrent async tasks run inside the server:
-1. **WebSocket streaming** (background) — connects, subscribes, and buffers incoming messages
-2. **MCP stdio server** (foreground) — handles Claude tool calls
+**`server.py`** defines the `app` (MCP `Server` instance) and `state` (`MarketState`) as module-level singletons. Both transports import these singletons — startup orchestration (launching the stream task, serving) lives in the transport modules, not in `server.py`.
 
-## Directory Structure
+**`transports/http.py`** uses MCP 1.26+ Streamable HTTP (`StreamableHTTPSessionManager`) over a Starlette/uvicorn app. It also exposes a `/websocket` route that proxies raw WebSocket connections directly to `WS_URI` (bidirectional passthrough).
 
-```
-ark_market_data_mcp/
-├── __init__.py          # Package init
-├── __main__.py          # Async entry point (python -m ark_market_data_mcp)
-├── config.py            # Environment config & constants
-├── server.py            # MCP server orchestration + main()
-├── state.py             # MarketState class (shared in-memory state)
-├── tools.py             # MCP tool definitions and handlers
-├── market/
-│   ├── __init__.py      # Market subpackage
-│   ├── stream.py        # WebSocket connection + auto-reconnect loop
-│   ├── alerts.py        # AlertManager class for price/percent change alerts
-│   └── analysis.py      # Market analysis functions (compute_summary)
-└── transports/
-    ├── __init__.py      # Transports subpackage
-    ├── stdio.py         # Stdio transport entry point
-    └── http.py          # HTTP transport (alternative transport)
-```
+**`transports/stdio.py`** runs the MCP stdio server alongside the WebSocket stream task as two concurrent asyncio tasks.
 
 ## Key Modules
 
-### `config.py`
-Reads environment variables and defines constants:
-- `WS_URI` — WebSocket endpoint
-- `SUBSCRIBE_MSG` — subscription payload sent on connect
-- `MAX_BUFFER_SIZE` — circular buffer cap (500 messages)
-
 ### `state.py` — `MarketState`
-Shared state object passed between the streaming task and tool handlers:
-- `buffer: deque[dict]` — circular buffer of parsed messages (max 500)
-- `latest_message: str` — raw text of the most recent message
-- `ws_connection` — active WebSocket connection (or `None`)
-- `message_count: int` — lifetime message counter (never resets)
-- `alert_manager: AlertManager` — manages price and percent change alerts
-- Methods: `add_message()`, `get_latest()`, `get_recent(count)`, `clear()`
+Shared state passed by reference between stream task and tool handlers:
+- `buffer: deque[dict]` — circular buffer, max 500 messages
+- `alert_manager: AlertManager` — price/percent-change alerts
+- `ws_connection` — live WebSocket handle (or `None`)
+- `message_count` — lifetime counter, never resets
 
-### `stream.py` — `connect_and_stream(state)`
-Background async task:
-1. Connects to `WS_URI`
-2. Sends `{"event": "subscribe_aggregated_market"}`
-3. Parses and buffers incoming JSON messages into `MarketState`
-4. Auto-reconnects with exponential backoff on failure (3s / 5s delays)
+### `market/stream.py` — `connect_and_stream(state)`
+Background task: connects → subscribes (`subscribe_aggregated_market`) → buffers JSON → auto-reconnects with 3s/5s backoff. Checks `state.alert_manager` on each message.
 
-### `tools.py` — MCP Tools
-Exposes 8 tools to Claude:
+### `market/alerts.py` — `AlertManager`
+Holds price alerts (threshold crossing) and percent-change alerts (rolling window). Evaluated inline during stream ingestion.
 
-| Tool | Input | Description |
-|------|-------|-------------|
-| `get_latest_message` | — | Returns the most recent raw message |
-| `get_recent_messages` | `count` (1–500, default 10) | Returns last N buffered messages as JSON |
-| `get_stream_status` | — | Returns connection status and buffer info |
-| `clear_buffer` | — | Clears the in-memory message buffer |
-| `get_market_summary` | `symbol` (e.g., 'BTC-USD', defaults to most recent) | Returns structured order book analysis (best bid/ask, spread, volumes, imbalance, price change) |
-| `set_price_alert` | `symbol`, `direction` ("above"/"below"), `price`, optional `label` | Sets a price alert that triggers when price crosses threshold |
-| `set_percent_change_alert` | `symbol`, `threshold_pct`, optional `window` (default 10) | Sets a percent change alert that triggers on price movement |
-| `get_alerts` | — | Returns all active and triggered alerts with their current status |
+### `market/analysis.py` — `compute_summary`
+Computes order book statistics (best bid/ask, spread, volume imbalance, price change) from buffered messages for a given symbol.
 
-### `server.py` — `main()`
-Orchestrates startup:
-1. Instantiates `MarketState`
-2. Launches `connect_and_stream` as a background asyncio task
-3. Starts the MCP stdio server (`mcp.run_stdio_async`)
-4. Handles graceful shutdown on cancellation
+### `tools.py`
+All 8 MCP tools: `get_latest_message`, `get_recent_messages`, `get_stream_status`, `clear_buffer`, `get_market_summary`, `set_price_alert`, `set_percent_change_alert`, `get_alerts`.
 
 ## Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `WS_URI` | `ws://localhost:9002` | WebSocket market data endpoint |
+| `WS_URI` | `ws://localhost:9002` | Upstream market data WebSocket |
+| `HTTP_HOST` | `0.0.0.0` | HTTP transport bind address |
+| `HTTP_PORT` | `3001` | HTTP transport port |
 
 ## Dependencies
 
-- `mcp >= 0.1.0` — Anthropic's MCP framework
+- `mcp >= 0.1.0` — MCP framework (`StreamableHTTPSessionManager` requires MCP 1.26+)
 - `websockets >= 12.0` — WebSocket client
-
-## Design Patterns
-
-- **Async/Await** throughout using `asyncio`
-- **Circular buffer** for bounded memory usage (max 500 messages)
-- **Separation of concerns**: server / stream / state / tools / config are each isolated
-- **Auto-reconnect** with backoff for resilient WebSocket handling
-- **Shared mutable state** passed by reference between tasks (no queues needed at this scale)
+- `uvicorn >= 0.27.0` + `starlette >= 0.36.0` — HTTP transport only
