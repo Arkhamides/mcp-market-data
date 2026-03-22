@@ -8,7 +8,7 @@
 
 ---
 
-## 🔄 Phase A — Historical Data Layer
+## ✅ Phase A — Historical Data Layer
 
 **Goal:** Give Claude access to enough history to run basic backtests.
 
@@ -16,7 +16,9 @@
 - ~~Local SQLite-backed historical store~~ (done — `~/.ark-market-data/ohlcv.db`, override with `DATA_DIR`)
 - ~~MCP tools: `get_ohlcv`, `get_candles_range`~~ (done)
 - ~~Configurable depth limits per tier (free = shallow, paid = deeper)~~ (done — `OHLCV_TIER` env var, default `free` = 200 candles)
+- ~~Historical seeding from Binance~~ (done — `scripts/seed_historical.py`, default 6 months, configurable)
 - Supabase-backed store (deferred to v0.2 auth phase)
+- Startup auto-seed routine (deferred — foundation in `run_seed()` in seed script)
 
 ---
 

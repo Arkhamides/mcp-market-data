@@ -30,6 +30,9 @@ dependencies = [
     "starlette>=0.36.0",
 ]
 
+[project.optional-dependencies]
+historical = ["ccxt>=4.0.0"]
+
 [project.urls]
 Homepage = "https://github.com/arkhamides/mcp-market-data"
 Repository = "https://github.com/arkhamides/mcp-market-data"
