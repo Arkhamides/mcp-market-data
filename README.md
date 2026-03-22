@@ -103,6 +103,9 @@ The MCP server exposes the following tools for Claude:
 - **`get_ohlcv`** - Recent closed candles for a symbol and resolution (1m/5m)
 - **`get_candles_range`** - Candles between two Unix timestamps
 
+**Backtesting**
+- **`run_backtest`** - Simulate a trading strategy against historical candles; returns P&L, max drawdown, and full trade log
+
 ## Connecting for the users of the app
 
 ### Remote server connection

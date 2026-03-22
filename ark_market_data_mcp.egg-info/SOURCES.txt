@@ -6,7 +6,6 @@ ark_market_data_mcp/__main__.py
 ark_market_data_mcp/config.py
 ark_market_data_mcp/server.py
 ark_market_data_mcp/state.py
-ark_market_data_mcp/stream.py
 ark_market_data_mcp/tools.py
 ark_market_data_mcp.egg-info/PKG-INFO
 ark_market_data_mcp.egg-info/SOURCES.txt
@@ -14,3 +13,13 @@ ark_market_data_mcp.egg-info/dependency_links.txt
 ark_market_data_mcp.egg-info/entry_points.txt
 ark_market_data_mcp.egg-info/requires.txt
 ark_market_data_mcp.egg-info/top_level.txt
+ark_market_data_mcp/market/__init__.py
+ark_market_data_mcp/market/alerts.py
+ark_market_data_mcp/market/analysis.py
+ark_market_data_mcp/market/backtest.py
+ark_market_data_mcp/market/ohlcv.py
+ark_market_data_mcp/market/store.py
+ark_market_data_mcp/market/stream.py
+ark_market_data_mcp/transports/__init__.py
+ark_market_data_mcp/transports/http.py
+ark_market_data_mcp/transports/stdio.py

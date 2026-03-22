@@ -8,6 +8,7 @@ from .config import WS_URI
 from .state import MarketState, SessionRegistry
 from .market.analysis import compute_summary
 from .market.store import OHLCVStore, TIER_LIMITS, OHLCV_TIER
+from .market.backtest import run_backtest, BacktestError
 
 def _get_session_id(app: Server) -> str:
     try:
@@ -184,6 +185,108 @@ def list_tools() -> list[Tool]:
                 "required": ["symbol", "start", "end"],
             },
         ),
+        Tool(
+            name="run_backtest",
+            description=(
+                "Simulate a trading strategy against historical OHLCV candles. "
+                "Accepts structured buy/sell rules with percent_change or price_threshold conditions. "
+                "Conditions fire every candle the signal is true (not only on first crossing — "
+                "a sustained move will trigger multiple trades, like DCA). "
+                "Returns P&L, max drawdown, trade count, and full trade log. "
+                f"Free tier: up to {TIER_LIMITS['free']} candles."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "Market symbol (e.g. 'BTC-USD')",
+                    },
+                    "resolution": {
+                        "type": "string",
+                        "enum": ["1m", "5m"],
+                        "description": "Candle resolution (default: '1m')",
+                        "default": "1m",
+                    },
+                    "rules": {
+                        "type": "array",
+                        "description": (
+                            "List of trading rules. Each rule has an action (buy/sell), "
+                            "amount_usd (dollar amount per trigger), and a condition."
+                        ),
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "action": {
+                                    "type": "string",
+                                    "enum": ["buy", "sell"],
+                                    "description": "Whether this rule triggers a buy or sell",
+                                },
+                                "amount_usd": {
+                                    "type": "number",
+                                    "description": "Dollar amount to buy or sell per trigger",
+                                },
+                                "condition": {
+                                    "type": "object",
+                                    "description": "The signal condition that triggers this rule",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "enum": ["percent_change", "price_threshold"],
+                                        },
+                                        "direction": {
+                                            "type": "string",
+                                            "enum": ["up", "down"],
+                                            "description": "Used with percent_change",
+                                        },
+                                        "percent": {
+                                            "type": "number",
+                                            "description": "Used with percent_change: threshold % (e.g. 10.0 for 10%)",
+                                        },
+                                        "window": {
+                                            "type": "integer",
+                                            "description": "Used with percent_change: candles to look back (default: 1)",
+                                            "default": 1,
+                                        },
+                                        "cross": {
+                                            "type": "string",
+                                            "enum": ["above", "below"],
+                                            "description": "Used with price_threshold",
+                                        },
+                                        "threshold": {
+                                            "type": "number",
+                                            "description": "Used with price_threshold: absolute price level",
+                                        },
+                                    },
+                                    "required": ["type"],
+                                },
+                            },
+                            "required": ["action", "amount_usd", "condition"],
+                        },
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": f"Number of recent candles to use (default: 200, max: {TIER_LIMITS[OHLCV_TIER]})",
+                        "default": 200,
+                    },
+                    "start": {
+                        "type": "integer",
+                        "description": "Range start as Unix timestamp (seconds). If provided, end is also required.",
+                    },
+                    "end": {
+                        "type": "integer",
+                        "description": "Range end as Unix timestamp (seconds). If provided, start is also required.",
+                    },
+                    "initial_capital": {
+                        "type": "number",
+                        "description": "Starting cash in USD (default: 1000.0)",
+                        "default": 1000.0,
+                    },
+                },
+                "required": ["symbol", "rules"],
+            },
+        ),
     ]
 
 
@@ -299,6 +402,46 @@ async def call_tool(
         if not candles:
             return [TextContent(type="text", text=f"No {resolution} candles found for {symbol} in the requested range.")]
         return [TextContent(type="text", text=json.dumps(candles, indent=2))]
+
+    elif name == "run_backtest":
+        if ohlcv_store is None:
+            return [TextContent(type="text", text="Historical store not available.")]
+        symbol = arguments.get("symbol", "")
+        if not symbol:
+            return [TextContent(type="text", text="Error: symbol is required.")]
+        resolution = arguments.get("resolution", "1m")
+        rules = arguments.get("rules")
+        if not rules:
+            return [TextContent(type="text", text="Error: rules array is required.")]
+        initial_capital = float(arguments.get("initial_capital", 1000.0))
+        if initial_capital <= 0:
+            return [TextContent(type="text", text="Error: initial_capital must be positive.")]
+        start = arguments.get("start")
+        end = arguments.get("end")
+        if start is not None and end is not None:
+            start, end = int(start), int(end)
+            if start > end:
+                return [TextContent(type="text", text="Error: start must be <= end.")]
+            candles = ohlcv_store.get_range(symbol, resolution, start, end)
+        else:
+            count = int(arguments.get("count", 200))
+            candles = ohlcv_store.get_recent(symbol, resolution, count)
+        if not candles:
+            return [TextContent(type="text", text=(
+                f"No {resolution} candles found for {symbol}. "
+                "Seed historical data first: python scripts/seed_historical.py"
+            ))]
+        try:
+            result = run_backtest(
+                candles=candles,
+                rules=rules,
+                initial_capital=initial_capital,
+                symbol=symbol,
+                resolution=resolution,
+            )
+        except BacktestError as exc:
+            return [TextContent(type="text", text=f"Backtest configuration error: {exc}")]
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
     else:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]

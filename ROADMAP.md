@@ -22,13 +22,13 @@
 
 ---
 
-## 🔲 Phase B — Backtesting Engine
+## ✅ Phase B — Backtesting Engine
 
 **Goal:** Let Claude run a strategy spec against historical data and return meaningful metrics.
 
-- MCP tool: `run_backtest` — accepts strategy rules (entry/exit conditions as structured input), returns P&L, drawdown, win rate, trade log
-- Strategy input format: simple threshold/signal rules expressible from natural language (no arbitrary code execution)
-- Run results stored per session; persisted for authenticated users (builds on v0.2 auth)
+- ~~MCP tool: `run_backtest` — accepts strategy rules (entry/exit conditions as structured input), returns P&L, drawdown, win rate, trade log~~ (done — `percent_change` and `price_threshold` conditions; DCA-style execution)
+- ~~Strategy input format: simple threshold/signal rules expressible from natural language (no arbitrary code execution)~~ (done)
+- Run results stored per session; persisted for authenticated users (deferred to v0.2 auth phase)
 
 ---
 

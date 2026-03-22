@@ -1,2 +1,3 @@
 [console_scripts]
-ark-market-data-mcp = ark_market_data_mcp.server:main
+ark-market-data-mcp = ark_market_data_mcp.transports.stdio:main
+ark-market-data-mcp-http = ark_market_data_mcp.transports.http:main
