@@ -5,6 +5,8 @@ An MCP (Model Context Protocol) server that streams real-time market data to Cla
 ## Features
 
 - **Real-time Market Data Streaming** - Connects to a WebSocket server and buffers incoming market data
+- **OHLCV History** - Aggregates live stream into 1m/5m candles persisted to a local SQLite database
+- **Historical Seeding** - One-command backfill from Binance (default 6 months, fully configurable)
 - **MCP Integration** - Works seamlessly with Claude via the Model Context Protocol
 - **Configurable WebSocket URL** - Supports environment variable configuration for flexible deployment
 - **In-memory Buffering** - Efficiently buffers up to 500 messages with configurable size
@@ -51,14 +53,58 @@ claude chat
 Ask Claude to use the market data tools, e.g., "What's the latest market data?"
 
 
+## Seeding Historical Data
+
+Before running backtests, seed the local database with historical candles from Binance.
+
+```bash
+# Install the historical extra
+pip install ark-market-data-mcp[historical]
+# or just: pip install ccxt
+
+# Default: BTC/USDT, 1m candles, last 6 months
+python scripts/seed_historical.py
+
+# Custom symbol / resolution
+python scripts/seed_historical.py --symbol ETH/USDT --resolution 5m
+
+# Custom date range
+python scripts/seed_historical.py --start 2024-01-01 --end 2024-07-01
+
+# Custom look-back window
+python scripts/seed_historical.py --days 90
+
+# Match your live stream symbol format
+python scripts/seed_historical.py --symbol BTC/USDT --store-symbol BTC-USD
+```
+
+Candles are written to `~/.ark-market-data/ohlcv.db` (override with `DATA_DIR` env var).
+Re-running is safe — existing candles are upserted, so gaps are filled without duplicates.
+
 ## Available Tools
 
 The MCP server exposes the following tools for Claude:
 
+**Real-time stream**
 - **`get_latest_message`** - Get the most recent market message from the stream
 - **`get_recent_messages`** - Get the last N messages (default: 10, max: 500)
 - **`get_stream_status`** - Check WebSocket connection status and buffer statistics
 - **`clear_buffer`** - Clear the message buffer
+
+**Order book analysis**
+- **`get_market_summary`** - Best bid/ask, spread, volume imbalance, price change %
+
+**Alerts**
+- **`set_price_alert`** - Trigger when a symbol crosses a price threshold
+- **`set_percent_change_alert`** - Trigger when price moves by a % over N messages
+- **`get_alerts`** - List all active and triggered alerts
+
+**Historical OHLCV**
+- **`get_ohlcv`** - Recent closed candles for a symbol and resolution (1m/5m)
+- **`get_candles_range`** - Candles between two Unix timestamps
+
+**Backtesting**
+- **`run_backtest`** - Simulate a trading strategy against historical candles; returns P&L, max drawdown, and full trade log
 
 ## Connecting for the users of the app
 

@@ -13,6 +13,9 @@ MAX_BUFFER_SIZE = 500
 # Max concurrent alerts
 MAX_ALERTS = 50
 
+# OHLCV local storage directory (override with DATA_DIR env var)
+DATA_DIR = os.environ.get("DATA_DIR", os.path.expanduser("~/.ark-market-data"))
+
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("market-mcp")
